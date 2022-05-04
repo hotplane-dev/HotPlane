@@ -1,20 +1,30 @@
 package io.hotplane.hotplane
 
 import android.app.Activity
+import android.content.Context
+import android.content.pm.PackageInfo
+import android.graphics.Bitmap
+import android.util.Base64
 import android.util.Log
 import android.view.MotionEvent
 import androidx.window.layout.WindowMetricsCalculator
+import com.jraska.falcon.Falcon
+import io.github.g00fy2.versioncompare.Version
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.ByteArrayOutputStream
+
 
 object HotPlane {
     private lateinit var accessCode: String
+    private var currentPage: String = ""
     private var width: Int = 0
     private var height: Int = 0
-    private var data: Data = Data(0, arrayListOf())
+    private var data: Data = Data(0, "", "", arrayListOf())
     private var objectCount: Int = 0
+    private var version: String = ""
 
     private const val MAX_OBJECT : Int = 10
     private const val DEF_WIDTH: Int = 320
@@ -30,6 +40,27 @@ object HotPlane {
     }
 
     fun setDataPoint(motionEvent: MotionEvent?, activity: Activity) {
+        if (currentPage != activity.localClassName) {
+            currentPage = activity.localClassName
+
+            // check screen version status
+            val pInfo: PackageInfo =
+                activity.packageManager.getPackageInfo(activity.packageName, 0)
+            version = pInfo.versionName
+
+            // check sharedpref
+            val sharedPref = activity.getPreferences(Context.MODE_PRIVATE)
+            val spVersion = sharedPref.getString("hp_" + activity.localClassName, "")
+            if (spVersion.isNullOrEmpty() || Version(version) > Version(spVersion)) {
+                activity.getPreferences(Context.MODE_PRIVATE) ?: return
+                with(sharedPref.edit()) {
+                    putString("hp_" + activity.localClassName, version).apply()
+                }
+                // do screenshot
+                screenshot(activity, version)
+            }
+        }
+
         motionEvent?.let {
             if(it.action != 0) {
                 return
@@ -65,6 +96,8 @@ object HotPlane {
             if (objectCount >= MAX_OBJECT) {
                 // do something here
                 data.count = data.events.size
+                data.version = version
+                data.base = getRandomString(7)
                 CoroutineScope(Dispatchers.IO).launch {
                     val response = HotPlaneApi.getInstance()
                         .postEvents("application/json", accessCode, data)
@@ -79,5 +112,42 @@ object HotPlane {
             }
         }
 
+    }
+
+    private fun screenshot(activity: Activity, version: String) {
+        val bitmap = Falcon.takeScreenshotBitmap(activity)
+        val sb = bitmapToString(bitmap)
+
+        CoroutineScope(Dispatchers.IO).launch {
+            val response = HotPlaneApi.getInstance().getScreen("application/json", accessCode, activity.localClassName, version)
+            response.body()?.message?.let {
+                m -> Log.e("updating", m)
+            }
+            response.body()?.let { m ->
+                if(m.canUpdate) {
+                    Log.e("updating", "Yeah")
+                    val body = NewScreen(activity.localClassName, version, sb)
+                    val updateResponse = HotPlaneApi.getInstance().postScreen("application/json", accessCode, body)
+                    updateResponse.body()?.message?.let { n ->
+                        Log.e("the response", n)
+                    }
+                }
+            }
+        }
+
+    }
+
+    private fun bitmapToString(bitmap: Bitmap): String {
+        val baos = ByteArrayOutputStream()
+        bitmap.compress(Bitmap.CompressFormat.JPEG, 80, baos)
+        val b = baos.toByteArray()
+        return Base64.encodeToString(b, Base64.DEFAULT)
+    }
+
+    fun getRandomString(length: Int) : String {
+        val allowedChars = ('A'..'Z') + ('a'..'z') + ('0'..'9')
+        return (1..length)
+            .map { allowedChars.random() }
+            .joinToString("")
     }
 }

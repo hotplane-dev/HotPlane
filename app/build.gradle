@@ -11,7 +11,7 @@ android {
         minSdk 24
         targetSdk 31
         versionCode 1
-        versionName "1.0"
+        versionName "1.0.27"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -43,4 +43,5 @@ dependencies {
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.4.0'
 
     implementation project(":hotplane")
+//    implementation 'com.github.hotplane-dev:HotPlane:1.0.0'
 }
