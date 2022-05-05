@@ -1,6 +1,7 @@
 package io.hotplane.hotplane
 
 import android.app.Activity
+import android.app.Application
 import android.content.Context
 import android.content.pm.PackageInfo
 import android.graphics.Bitmap
@@ -22,7 +23,7 @@ object HotPlane {
     private var currentPage: String = ""
     private var width: Int = 0
     private var height: Int = 0
-    private var data: Data = Data(0, "", "", arrayListOf())
+    private var data: Data = Data(0, "", "", "", arrayListOf())
     private var objectCount: Int = 0
     private var version: String = ""
 
@@ -30,8 +31,15 @@ object HotPlane {
     private const val DEF_WIDTH: Int = 320
     private const val DEF_HEIGHT: Int = 480
 
-    fun setAccessCode(ac : String) {
+    fun setAccessCode(ac : String, app: Application) {
         accessCode = ac
+        val sp = app.getSharedPreferences("hotplane", Context.MODE_PRIVATE)
+        val spId = sp.getString("hpid", "")
+        if (spId.isNullOrEmpty()) {
+            with(sp.edit()) {
+                putString("hpid", getRandomString(6)).apply()
+            }
+        }
     }
 
     fun setWidthHeight(width: Int, height: Int) {
@@ -49,10 +57,9 @@ object HotPlane {
             version = pInfo.versionName
 
             // check sharedpref
-            val sharedPref = activity.getPreferences(Context.MODE_PRIVATE)
+            val sharedPref = activity.getSharedPreferences("hotplane", Context.MODE_PRIVATE)
             val spVersion = sharedPref.getString("hp_" + activity.localClassName, "")
             if (spVersion.isNullOrEmpty() || Version(version) > Version(spVersion)) {
-                activity.getPreferences(Context.MODE_PRIVATE) ?: return
                 with(sharedPref.edit()) {
                     putString("hp_" + activity.localClassName, version).apply()
                 }
@@ -98,6 +105,9 @@ object HotPlane {
                 data.count = data.events.size
                 data.version = version
                 data.base = getRandomString(7)
+                val sp = activity.getSharedPreferences("hotplane", Context.MODE_PRIVATE)
+                data.uniqueId = sp.getString("hpid", "").toString()
+
                 CoroutineScope(Dispatchers.IO).launch {
                     val response = HotPlaneApi.getInstance()
                         .postEvents("application/json", accessCode, data)

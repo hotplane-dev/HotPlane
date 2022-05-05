@@ -35,7 +35,7 @@ interface HotPlaneApi {
                     .build()
 
                 val retrofit = Retrofit.Builder()
-                    .baseUrl("https://209d-139-0-178-4.ngrok.io/")
+                    .baseUrl("https://91dd-139-0-178-4.ngrok.io/")
                     .client(okHttpClient)
                     .addConverterFactory(GsonConverterFactory.create(gson))
                     .build()

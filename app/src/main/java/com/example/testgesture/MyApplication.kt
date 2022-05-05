@@ -5,7 +5,7 @@ import io.hotplane.hotplane.HotPlane
 
 class MyApplication : Application() {
     override fun onCreate() {
-        HotPlane.setAccessCode("abcde")
+        HotPlane.setAccessCode("abcde", this)
 
         super.onCreate()
     }

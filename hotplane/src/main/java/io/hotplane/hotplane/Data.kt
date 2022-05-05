@@ -8,6 +8,7 @@ data class Data (
     @SerializedName("count"  ) var count  : Int?              = null,
     @SerializedName("version"  ) var version  : String              = "",
     @SerializedName("base"  ) var base  : String              = "",
+    @SerializedName("unique_id"  ) var uniqueId  : String              = "",
     @SerializedName("events" ) var events : ArrayList<Event> = arrayListOf()
 
 )
